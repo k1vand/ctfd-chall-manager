@@ -21,12 +21,13 @@ CM_API_TIMEOUT = get_config("chall-manager:chall-manager_api_timeout")
 # This is false positive
 
 
-def create_instance(challenge_id: int, source_id: int) -> dict | ChallManagerException:
+def create_instance(challenge_id: int, source_id: int, additional: dict[str,str] = None) -> dict | ChallManagerException:
     """
     Spins up a challenge instance, iif the challenge is registered and no instance is yet running.
 
     :param challenge_id: id of challenge for the instance
     :param source_id: id of source for the instance
+    :parama additional: additinal params, challenge specific
     :return dict: JSON response of chall-manager API
     :raise ChallManagerException:
     """
@@ -35,7 +36,11 @@ def create_instance(challenge_id: int, source_id: int) -> dict | ChallManagerExc
     url = f"{cm_api_url}/api/v1/instance"
     cache_key = f"instance:{challenge_id}:{source_id}"
 
-    payload = {"challengeId": str(challenge_id), "sourceId": str(source_id)}
+    payload = {
+        "challengeId": str(challenge_id),
+        "sourceId": str(source_id),
+        "additional": additional,
+    }
 
     headers = {"Content-Type": "application/json"}
 

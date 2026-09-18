@@ -26,6 +26,7 @@ from CTFd.utils import user as current_user
 from CTFd.utils.config import is_teams_mode
 from CTFd.utils.decorators import authed_only
 from flask_restx import Resource, abort
+from CTFd.plugins.team_infrastructure import get_or_create_team_infrastructure
 
 # Configure logger for this module
 logger = configure_logger(__name__)
@@ -117,6 +118,8 @@ class UserInstance(Resource):
         logger.info(
             "user %s request instance creation of challenge %s", source_id, challenge_id
         )
+
+        team_infra = None
         # check userMode of CTFd
         if is_teams_mode():
             source_id = user.team_id
@@ -124,6 +127,13 @@ class UserInstance(Resource):
             if not source_id:
                 logger.info("user %s has no team, abort", user_id)
                 abort(403, "unauthorized", success=False)
+
+            try:
+                team_infra = get_or_create_team_infrastructure(source_id)
+            except Exception as e:
+                logger.error("Failed to get team infrastructure")
+
+            
 
         lock = load_or_store(str(source_id))
         if lock.is_locked():
@@ -137,12 +147,21 @@ class UserInstance(Resource):
             if not check_source_can_create_instance(challenge_id, source_id):
                 abort(403, "You or your team used up all your mana.", success=False)
 
+            additional = {}
+            if team_infra is not None:
+                additional = {
+                    "team_id": str(team_infra.team_id),
+                    "slot": str(team_infra.slot),
+                    "network_name": team_infra.network_name,
+                    "challenge_subnet": team_infra.challenge_subnet,
+                }
+
             logger.debug(
                 "creating instance for challenge_id: %s, source_id: %s",
                 challenge_id,
                 source_id,
             )
-            result = create_instance(challenge_id, source_id)
+            result = create_instance(challenge_id, source_id, additional)
             logger.info(
                 "instance for challenge_id: %s, source_id: %s created successfully",
                 challenge_id,
